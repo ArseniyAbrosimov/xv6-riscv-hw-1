@@ -688,3 +688,64 @@ procdump(void)
     printf("\n");
   }
 }
+
+
+
+#include "procinfo.h"
+
+#define WRONGARG -1
+#define WRONGSIZE -2
+#define COPYERROR -3
+
+
+uint64 sys_ps_listinfo(void) {
+  uint64 dst;
+  int lim;
+
+  argaddr(0, &dst);
+  argint(1, &lim);
+
+  struct proc *p;
+  int count = 0;
+
+  for(p = proc; p < &proc[NPROC]; p++) {
+    enum procstate state;
+    struct procinfo pi;
+
+    acquire(&p->lock);
+    state = p->state;
+    release(&p->lock);
+
+    if (state == UNUSED)
+      continue;
+
+    if (dst != 0) {
+      if (count == lim)
+          return WRONGSIZE;
+
+
+      pi.state = state;
+
+      safestrcpy(pi.name, p->name, sizeof(p->name));
+
+      acquire(&p->lock);
+      pi.pid = p->pid;
+      release(&p->lock);
+      
+      acquire(&wait_lock);
+      if (p->parent != 0) {
+        acquire(&p->parent->lock);
+        pi.parent = p->parent->pid;
+        release(&p->parent->lock);
+      }
+      release(&wait_lock);
+
+      int ret = copyout(myproc()->pagetable, dst + count*sizeof(pi), (char*)&pi, sizeof(pi));
+      if (ret < 0)
+        return COPYERROR;
+    }
+    count++;
+  }
+
+  return count;
+}
