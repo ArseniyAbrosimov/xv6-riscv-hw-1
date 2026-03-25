@@ -8,6 +8,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct mutex;
 
 // bio.c
 void            binit(void);
@@ -71,6 +72,10 @@ int             pipealloc(struct file**, struct file**);
 void            pipeclose(struct pipe*, int);
 int             piperead(struct pipe*, uint64, int);
 int             pipewrite(struct pipe*, uint64, int);
+
+// mutex.c
+int             mutexalloc(struct file **file);
+void            mutexclose(struct mutex *mutex);
 
 // printf.c
 int             printf(char*, ...) __attribute__ ((format (printf, 1, 2)));
