@@ -14,8 +14,13 @@ main(int argc, char *argv[]) {
   int res;
 
   for (;;) {
-    struct procinfo buf[lim];
-  
+    struct procinfo *buf = malloc(lim * sizeof(struct procinfo));
+
+    if (buf == 0) {
+      fprintf(2, "Ошибка malloc");
+      exit(-1);
+    }
+
     res = ps_listinfo(buf, lim);
     if (res == COPYERR){
       fprintf(2, "Ошибка записи в буфер");
@@ -24,7 +29,7 @@ main(int argc, char *argv[]) {
       lim *= 2;
     else {
       printf("Таблица процессов\n");
-      printf("pid\tname\tstate\tparent\n");
+      printf("pid\tname\tstate\t\tparent\tpname\n");
       struct procinfo *p;
       for (p = buf; p < &buf[res]; p++) {
         printf("%d\t", p->pid);
@@ -47,9 +52,22 @@ main(int argc, char *argv[]) {
             break;
           default:
         }
-        printf("%d\n", p->parent);
+        if (p->parent != 0) {
+          printf("%d\t", p->parent);
+          struct procinfo *parent;
+          for (parent = buf; parent < &buf[res]; parent++) {
+            if (parent->pid == p->parent) {
+              printf("%s\n", parent->name);
+            }
+          }
+        } else {
+          printf("no\t");
+          printf("no\n");
+        }
       }
+      free(buf);
       break;
     }
+    free(buf);
   }
 }

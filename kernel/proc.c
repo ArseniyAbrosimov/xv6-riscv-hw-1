@@ -709,41 +709,48 @@ uint64 sys_ps_listinfo(void) {
   int count = 0;
 
   for(p = proc; p < &proc[NPROC]; p++) {
-    enum procstate state;
     struct procinfo pi;
 
+    acquire(&wait_lock);
     acquire(&p->lock);
-    state = p->state;
-    release(&p->lock);
-
-    if (state == UNUSED)
+    
+    if (p->state == UNUSED) {
+      release(&p->lock);
+      release(&wait_lock);
       continue;
+    }
 
     if (dst != 0) {
-      if (count == lim)
-          return WRONGSIZE;
+      if (count == lim) {
+        release(&p->lock);
+        release(&wait_lock);
+        return WRONGSIZE;
+      }
 
 
-      pi.state = state;
+      pi.state = p->state;
 
       safestrcpy(pi.name, p->name, sizeof(p->name));
-
-      acquire(&p->lock);
+     
       pi.pid = p->pid;
-      release(&p->lock);
       
-      acquire(&wait_lock);
       if (p->parent != 0) {
         acquire(&p->parent->lock);
         pi.parent = p->parent->pid;
         release(&p->parent->lock);
+      } else {
+        pi.parent = 0;
       }
-      release(&wait_lock);
-
+      
       int ret = copyout(myproc()->pagetable, dst + count*sizeof(pi), (char*)&pi, sizeof(pi));
-      if (ret < 0)
+      if (ret < 0) {
+        release(&p->lock);
+        release(&wait_lock);
         return COPYERROR;
+      }
     }
+    release(&p->lock);
+    release(&wait_lock);
     count++;
   }
 
