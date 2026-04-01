@@ -23,6 +23,11 @@ main(void)
   dup(0);  // stdout
   dup(0);  // stderr
 
+  mknod("null", DRIVER, NULL_MINOR);
+  mknod("zero", DRIVER, ZERO_MINOR);
+  mknod("urandom", DRIVER, URANDOM_MINOR);
+  mknod("nullstat", DRIVER, NULLSTAT_MINOR);
+
   for(;;){
     printf("init: starting sh\n");
     pid = fork();

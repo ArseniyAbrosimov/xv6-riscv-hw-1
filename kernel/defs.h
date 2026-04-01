@@ -22,6 +22,9 @@ void            consoleinit(void);
 void            consoleintr(int);
 void            consputc(int);
 
+// driver.c
+void            driverinit(void);
+
 // exec.c
 int             kexec(char*, char**);
 
