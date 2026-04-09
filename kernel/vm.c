@@ -484,3 +484,146 @@ ismapped(pagetable_t pagetable, uint64 va)
   }
   return 0;
 }
+
+void
+print_pos(int pos)
+{
+  printf("0x");
+  if (pos < 16)
+    printf("00");
+  else if(pos < 196)
+    printf("0");
+  printf("%x", pos);
+}
+
+void
+print_addr(uint64 addr)
+{
+  printf("0x");
+  for(int i = 60; i >= 0; i -= 4){
+    printf("%x", (int) (addr >> i) & 0xF);
+  }
+}
+
+void
+print_flag(pte_t pte, int flag, char c)
+{
+  if (pte & flag)
+    printf("%c", c);
+  else
+    printf("_");
+}
+void
+print_flags(pte_t pte)
+{
+  print_flag(pte, PTE_R, 'R');
+  print_flag(pte, PTE_W, 'W');
+  print_flag(pte, PTE_X, 'X');
+  print_flag(pte, PTE_U, 'U');
+  print_flag(pte, PTE_G, 'G');
+  print_flag(pte, PTE_A, 'A');
+  print_flag(pte, PTE_D, 'D');
+}
+
+void
+vprint_walk(pagetable_t pagetable, int level)
+{
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if(pte & PTE_V) {
+      uint64 child = PTE2PA(pte);
+
+      if(level == 2)
+        printf("......... ");
+      else if(level == 1)
+        printf(".................. ");
+      else if(level == 0)
+        printf("............................ ");
+      
+      print_pos(i);
+      printf(" -> ");
+      print_addr(child);
+      printf(" ");
+      print_flags(pte);
+      printf("\n");
+
+      if ((pte & (PTE_R|PTE_W|PTE_X)) != 0)
+        continue;
+
+      vprint_walk((pagetable_t)child, level - 1);
+    }
+  }
+}
+
+void
+print_walk(pagetable_t pagetable)
+{
+  printf("PAGETABLE ");
+  print_addr((uint64) pagetable);
+  printf("\n");
+
+  vprint_walk(pagetable, 2);
+}
+
+int
+vmclear_flags(pagetable_t pagetable, uint64 srcva, uint64 len, int mask)
+{
+  uint64 n, va0;
+  pte_t *pte;
+
+  if ((mask & ~(PTE_A | PTE_D)) != 0)
+    return -1;
+
+  while(len > 0){
+    va0 = PGROUNDDOWN(srcva);
+    pte = walk(pagetable, va0, 0);
+
+    if(pte != 0 && (*pte & PTE_V) != 0) {
+      if((*pte & PTE_U) == 0)
+        return -1;
+      *pte &= ~mask;
+    }
+
+    n = PGSIZE - (srcva - va0);
+    if(n > len)
+      n = len;
+
+    len -= n;
+    srcva = va0 + PGSIZE;
+  }
+
+  return 0;
+}
+
+int
+vmcheck_flags(pagetable_t pagetable, uint64 srcva, uint64 len, int mask)
+{
+  uint64 n, va0;
+  pte_t *pte;
+
+
+  if ((mask & ~(PTE_A | PTE_D)) != 0)
+    return -1;
+
+  while(len > 0){
+    va0 = PGROUNDDOWN(srcva);
+    pte = walk(pagetable, va0, 0);
+
+    if(pte != 0 && (*pte & PTE_V) != 0) {
+      if((*pte & PTE_U) == 0)
+        return -1;
+      if ((*pte & mask) != 0)
+        return 1;
+    }
+
+    n = PGSIZE - (srcva - va0);
+    if(n > len)
+      n = len;
+
+    len -= n;
+    srcva = va0 + PGSIZE;
+  }
+
+  return 0;
+}
+
