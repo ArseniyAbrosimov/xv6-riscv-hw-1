@@ -22,6 +22,9 @@ void            consoleinit(void);
 void            consoleintr(int);
 void            consputc(int);
 
+// rtc.c
+void            rtcinit(void);
+
 // exec.c
 int             kexec(char*, char**);
 
